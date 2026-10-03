@@ -8,9 +8,11 @@
 *.out
 coverage.*
 
-# Claude Code local settings
+# Claude Code files (never committed)
 .claude/
 CLAUDE.local.md
+CLAUDE.md
+.mcp.json
 
 # Local tool caches (kept inside the repo)
 .tmp/
