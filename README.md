@@ -50,11 +50,11 @@ _Steps 1 and 2 are built and tested (M1); the rest is on the [roadmap](#roadmap)
 
 ## Tech stack
 
-| Area | Tools |
-|---|---|
-| Core | Go, skip-list memtable, SSTables read with `ReadAt` (mmap is a later option, ADR 0002), crc32c checksums |
-| Test | Go fuzzing, testing.B benchmarks, custom crash-injection harness |
-| Docs | design doc, flame graphs, YCSB workloads |
+| Area | In M1 | Planned |
+|---|---|---|
+| Core | Go, write-ahead log with crc32c, skip-list memtable, SSTables read with `ReadAt`, bloom filters | Leveled compaction, MVCC snapshots, mmap (ADR 0002) |
+| Test | Go fuzzing, testing.B benchmarks, crash and recovery tests | Crash harness mid-flush and mid-compaction |
+| Docs | RFC, ADRs, results | Flame graphs, YCSB workloads |
 
 Language: **Go** (standard library only).
 
@@ -161,7 +161,7 @@ What this repo must show before it counts as done:
 ## Why it matters
 
 - **Interview angle:** 'Design a key-value store' and 'explain write amplification'.
-- **Upstream I'm contributing to:** RocksDB (Meta) or Pebble (Cockroach Labs).
+- **Upstream I'd like to contribute to:** RocksDB (Meta) or Pebble (Cockroach Labs).
 
 ## Design docs
 
