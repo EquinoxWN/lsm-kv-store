@@ -7,6 +7,16 @@
 
 Part of my **Distributed Systems & Storage** list · Go · core project
 
+## Proof it works
+
+The command line stores, reads and deletes keys in a real on-disk store (each run reopens it from its WAL and SSTables), the benchmarks run, and ten seconds of fuzzing feed about 590,000 random byte strings to the WAL decoder without a crash:
+
+![CLI session, benchmarks and fuzzing](docs/proof/demo.jpg)
+
+25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.8, the version CI uses:
+
+![go vet, go test and govulncheck output](docs/proof/tests.jpg)
+
 ## Architecture
 
 **What M1 runs today:**
