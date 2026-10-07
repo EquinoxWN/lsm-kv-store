@@ -48,6 +48,12 @@ _Steps 1 and 2 are built and tested (M1); the rest is on the [roadmap](#roadmap)
 5. Snapshots pin a sequence number, so readers see a consistent view while writes and compaction continue (MVCC).
 6. A crash harness kills the process mid-WAL, mid-flush and mid-compaction, restarts, and asserts that no acknowledged write was lost.
 
+## Who it helps
+
+- **Who:** Engineers who want to understand or debug the storage engines behind Cassandra, RocksDB and similar databases.
+- **The problem:** How a write survives a crash, and why log-structured storage stays fast under constant writes, is hard to see in a production codebase.
+- **How to use it:** Use the command line to store and read keys in a real on-disk store, read the write-ahead log, memtable and SSTable code, and run the crash-recovery tests.
+
 ## Tech stack
 
 | Area | In M1 | Planned |
