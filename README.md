@@ -13,7 +13,7 @@ The command line stores, reads and deletes keys in a real on-disk store (each ru
 
 ![CLI session, benchmarks and fuzzing](docs/proof/demo.jpg)
 
-25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.8, the version CI uses:
+25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.9, the version CI uses:
 
 ![go vet, go test and govulncheck output](docs/proof/tests.jpg)
 
@@ -182,7 +182,7 @@ This is a learning and portfolio system, not a hosted production service. Everyt
 ## Security and contributing
 
 - Every GitHub Action is pinned to a commit SHA; workflows run read-only, without persisted credentials.
-- Dependabot proposes dependency and action updates weekly.
+- Dependabot update pull requests are paused (`open-pull-requests-limit: 0`) so the repository keeps a single `main` branch; dependencies are updated by hand and checked by the CI audit.
 - `go vet`, `gofmt` and the race detector on every push; `govulncheck` (`make audit`) in CI.
 - Report vulnerabilities privately: see [SECURITY.md](SECURITY.md). To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
