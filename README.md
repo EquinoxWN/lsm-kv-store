@@ -13,7 +13,7 @@ The command line stores, reads and deletes keys in a real on-disk store (each ru
 
 ![CLI session, benchmarks and fuzzing](docs/proof/demo.jpg)
 
-25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.9, the version CI uses:
+25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.10, the version CI uses:
 
 ![go vet, go test and govulncheck output](docs/proof/tests.jpg)
 
