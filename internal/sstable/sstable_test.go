@@ -1,8 +1,10 @@
 package sstable
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -121,5 +123,40 @@ func TestTruncatedFileRejected(t *testing.T) {
 	}
 	if _, err := Open(path); !errors.Is(err, ErrCorrupt) {
 		t.Fatalf("want ErrCorrupt, got %v", err)
+	}
+}
+
+func TestFooterLengthsThatOverflowAreRejected(t *testing.T) {
+	path := buildTable(t, 50)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// indexOff 0 and indexLen 2^64-4: off+len+crc wraps to 0, which a plain sum check accepts.
+	ft := data[len(data)-footerLen:]
+	binary.LittleEndian.PutUint64(ft[0:], 0)
+	binary.LittleEndian.PutUint64(ft[8:], math.MaxUint64-crcLen+1)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(path); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("want ErrCorrupt, got %v", err)
+	}
+}
+
+func TestBloomFilterAnswersMissesWithoutReadingTheFile(t *testing.T) {
+	r, err := Open(buildTable(t, 200))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var absent []byte
+	for i := 0; absent == nil; i++ {
+		if k := []byte(fmt.Sprintf("absent-%d", i)); !r.MayContain(k) {
+			absent = k
+		}
+	}
+	r.Close() // any block read now fails, so a nil error proves the filter answered
+	if _, _, ok, err := r.Get(absent, ikey.MaxSeq); ok || err != nil {
+		t.Fatalf("Get(%q) = ok %v, err %v; want a miss from the filter alone", absent, ok, err)
 	}
 }

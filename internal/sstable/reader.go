@@ -57,7 +57,7 @@ func load(f *os.File) (*Reader, error) {
 		return nil, err
 	}
 	end := uint64(info.Size() - footerLen)
-	if ft.indexOff+ft.indexLen+crcLen > end || ft.bloomOff+ft.bloomLen+crcLen > end {
+	if !within(ft.indexOff, ft.indexLen, end) || !within(ft.bloomOff, ft.bloomLen, end) {
 		return nil, ErrCorrupt
 	}
 	r := &Reader{f: f, maxSeq: ft.maxSeq}
@@ -74,6 +74,11 @@ func load(f *os.File) (*Reader, error) {
 	}
 	r.filter = bloom.Filter(filter)
 	return r, nil
+}
+
+// within reports whether a block and its crc fit before end, without uint64 overflow.
+func within(off, n, end uint64) bool {
+	return end >= crcLen && n <= end-crcLen && off <= end-crcLen-n
 }
 
 // parseIndex decodes the index block into memory.
