@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/EquinoxWN/lsm-kv-store/internal/ikey"
+	"github.com/EquinoxWN/lsm-kv-store/internal/skiplist"
 )
 
 func mustOpen(t *testing.T, dir string, opts Options) *DB {
@@ -238,5 +241,70 @@ func TestClosedDBRejectsCalls(t *testing.T) {
 	}
 	if _, err := db.Get([]byte("k")); !errors.Is(err, ErrClosed) {
 		t.Fatalf("Get after Close: %v", err)
+	}
+}
+
+func TestGetPrefersActiveMemtableOverFlushingOne(t *testing.T) {
+	db := mustOpen(t, t.TempDir(), Options{})
+	defer db.Close()
+	if err := db.Put([]byte("k"), []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	// An immutable memtable still being flushed holds an older version of the same key.
+	old := skiplist.New()
+	old.Put(ikey.Key{User: []byte("k"), Seq: 0, Kind: ikey.KindSet}, []byte("old"))
+	db.mu.Lock()
+	db.imm = &memtable{list: old}
+	db.mu.Unlock()
+	mustGet(t, db, "k", "new")
+	db.mu.Lock()
+	db.imm = nil
+	db.mu.Unlock()
+}
+
+func TestLeftoverLogOfFlushedWritesIsNotFlushedAgain(t *testing.T) {
+	dir := t.TempDir()
+	db := mustOpen(t, dir, Options{})
+	if err := db.Put([]byte("k"), []byte("v")); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	logs, _ := filepath.Glob(filepath.Join(dir, "*.log"))
+	saved := copyDir(t, dir)
+
+	// Reopening flushes the log into a table and deletes it.
+	db = mustOpen(t, dir, Options{})
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// A crash before that delete reached disk leaves the log next to the table holding its records.
+	for _, l := range logs {
+		data, err := os.ReadFile(filepath.Join(saved, filepath.Base(l)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(l, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db = mustOpen(t, dir, Options{})
+	defer db.Close()
+	mustGet(t, db, "k", "v")
+	if got := db.Stats().Tables; got != 1 {
+		t.Fatalf("Tables = %d, want 1: records already in a table were flushed again", got)
+	}
+}
+
+func TestUnrelatedFilesInTheDirectoryAreIgnored(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "000007.txt"), []byte("notes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db := mustOpen(t, dir, Options{})
+	defer db.Close()
+	if got := db.Stats().Tables; got != 0 {
+		t.Fatalf("Tables = %d, want 0", got)
 	}
 }

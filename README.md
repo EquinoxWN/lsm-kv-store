@@ -13,7 +13,7 @@ The command line stores, reads and deletes keys in a real on-disk store (each ru
 
 ![CLI session, benchmarks and fuzzing](docs/proof/demo.jpg)
 
-25 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.10, the version CI uses:
+34 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.10, the version CI uses:
 
 ![go vet, go test and govulncheck output](docs/proof/tests.jpg)
 
@@ -104,35 +104,42 @@ Latest local run (full detail in [docs/results/m1.md](docs/results/m1.md)):
 
 | Check | Result |
 |---|---|
-| Unit, recovery and crash tests | 25 passed, 0 failed |
+| Unit, recovery and crash tests | 34 passed, 0 failed |
 | Simulated crash with a torn WAL tail | 200 of 200 acknowledged writes recovered |
 | WAL decoder fuzzing (30 s) | ~3.3M inputs, 0 crashes |
 | Durable writes (fsync each) | ~430/s (2.34 ms each) |
 | Writes without fsync | ~119,000/s |
 | Point reads, 50k keys | ~65,000/s |
 
-CI runs the same tests with the race detector on every push.
+CI runs the same tests with the race detector on every push. The 10 quality rules and the mutation check are recorded in [docs/quality/2026-11-01.md](docs/quality/2026-11-01.md).
 
 ### Test map
 
 ```mermaid
 mindmap
-  root((25 tests pass))
+  root((34 tests pass))
     Public API
       put get delete
       bad input refused
       flush to tables and reopen
       closed DB rejects calls
+      newest memtable read first
+      stray files ignored
+      CLI commands and bad arguments
     Durability
       unflushed writes recovered from WAL
       200 of 200 writes survive a simulated crash
       torn WAL tail ignored
       checksum mismatch stops replay
+      flushed log not flushed twice
+      trailing bytes and oversized lengths refused
     Concurrency
       8 writers and 8 readers with the race detector
     Storage format
       SSTable round trip and missing keys
       corrupt block and truncated file detected
+      overflowing footer lengths rejected
+      bloom misses never read the file
       bloom filter has no false negatives
     Fuzzing
       3.3M WAL inputs and 0 crashes

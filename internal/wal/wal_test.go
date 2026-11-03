@@ -2,9 +2,12 @@ package wal
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/EquinoxWN/lsm-kv-store/internal/ikey"
@@ -105,4 +108,37 @@ func FuzzReplay(f *testing.F) {
 			t.Fatal(err)
 		}
 	})
+}
+
+// frameRaw wraps payload in a header with a valid checksum.
+func frameRaw(payload []byte) []byte {
+	hdr := make([]byte, headerLen)
+	binary.LittleEndian.PutUint32(hdr[0:4], crc32.Checksum(payload, castagnoli))
+	binary.LittleEndian.PutUint32(hdr[4:8], uint32(len(payload)))
+	return append(hdr, payload...)
+}
+
+func TestPayloadWithTrailingBytesIsCorrupt(t *testing.T) {
+	good := encodePayload(nil, Record{Kind: ikey.KindSet, Seq: 1, Key: []byte("k"), Value: []byte("v")})
+	data := append(frameRaw(good), frameRaw(append(bytes.Clone(good), 0x00))...)
+	var n int
+	res, err := replayFrom(bytes.NewReader(data), func(Record) error { n++; return nil })
+	if err != nil || n != 1 || !res.TornTail {
+		t.Fatalf("replayed %d records torn=%v err=%v; want 1 record then a torn tail", n, res.TornTail, err)
+	}
+}
+
+func TestOversizedLengthIsNotAllocated(t *testing.T) {
+	hdr := make([]byte, headerLen)
+	binary.LittleEndian.PutUint32(hdr[4:8], maxPayload+1)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	res, err := replayFrom(bytes.NewReader(hdr), func(Record) error { return nil })
+	runtime.ReadMemStats(&after)
+	if err != nil || !res.TornTail {
+		t.Fatalf("torn=%v err=%v; want a torn tail", res.TornTail, err)
+	}
+	if grew := after.TotalAlloc - before.TotalAlloc; grew > 1<<20 {
+		t.Fatalf("a corrupt length allocated %d bytes; want it refused before allocating", grew)
+	}
 }
