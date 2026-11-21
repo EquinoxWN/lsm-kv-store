@@ -65,7 +65,7 @@ func load(f *os.File) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	if r.index, err = parseIndex(idx); err != nil {
+	if r.index, err = parseIndex(idx, ft.indexOff); err != nil {
 		return nil, err
 	}
 	filter, err := r.readBlock(ft.bloomOff, ft.bloomLen)
@@ -81,8 +81,8 @@ func within(off, n, end uint64) bool {
 	return end >= crcLen && n <= end-crcLen && off <= end-crcLen-n
 }
 
-// parseIndex decodes the index block into memory.
-func parseIndex(b []byte) ([]indexEntry, error) {
+// parseIndex decodes the index block; every data block must end before dataEnd.
+func parseIndex(b []byte, dataEnd uint64) ([]indexEntry, error) {
 	var out []indexEntry
 	for len(b) > 0 {
 		enc, rest, ok := readField(b)
@@ -98,7 +98,7 @@ func parseIndex(b []byte) ([]indexEntry, error) {
 			return nil, ErrCorrupt
 		}
 		n, w2 := binary.Uvarint(rest[w1:])
-		if w2 <= 0 {
+		if w2 <= 0 || !within(off, n, dataEnd) {
 			return nil, ErrCorrupt
 		}
 		out = append(out, indexEntry{last: k, off: off, n: n})

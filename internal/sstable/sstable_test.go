@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"math"
 	"os"
 	"path/filepath"
@@ -158,5 +159,38 @@ func TestBloomFilterAnswersMissesWithoutReadingTheFile(t *testing.T) {
 	r.Close() // any block read now fails, so a nil error proves the filter answered
 	if _, _, ok, err := r.Get(absent, ikey.MaxSeq); ok || err != nil {
 		t.Fatalf("Get(%q) = ok %v, err %v; want a miss from the filter alone", absent, ok, err)
+	}
+}
+
+func TestIndexEntryPastDataIsRejected(t *testing.T) {
+	path := buildTable(t, 50)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ft, err := decodeFooter(data[len(data)-footerLen:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One index entry with a valid checksum whose block length points far past the data.
+	last := ikey.Append(nil, ikey.Key{User: []byte("zzzz"), Seq: 1, Kind: ikey.KindSet})
+	idx := binary.AppendUvarint(nil, uint64(len(last)))
+	idx = append(idx, last...)
+	idx = binary.AppendUvarint(idx, 0)
+	idx = binary.AppendUvarint(idx, 1<<40)
+	idx = binary.LittleEndian.AppendUint32(idx, crc32.Checksum(idx, castagnoli))
+	bloomBlock := data[ft.bloomOff : ft.bloomOff+ft.bloomLen+crcLen]
+	out := append([]byte(nil), data[:ft.indexOff]...)
+	newIdxOff := uint64(len(out))
+	out = append(out, idx...)
+	newBloomOff := uint64(len(out))
+	out = append(out, bloomBlock...)
+	out = append(out, footer{indexOff: newIdxOff, indexLen: uint64(len(idx)) - crcLen,
+		bloomOff: newBloomOff, bloomLen: ft.bloomLen, maxSeq: ft.maxSeq}.encode()...)
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(path); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("want ErrCorrupt, got %v", err)
 	}
 }
