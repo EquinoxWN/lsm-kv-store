@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -34,5 +37,15 @@ func TestRunRejectsBadArguments(t *testing.T) {
 		if len(args) == 0 && !strings.Contains(err.Error(), "missing command") {
 			t.Fatalf("run(nil) = %v", err)
 		}
+	}
+}
+
+func TestRunLeavesNoStoreForABadCommand(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "db")
+	if err := run(dir, []string{"frobnicate"}); err == nil {
+		t.Fatal("want an error")
+	}
+	if _, err := os.Stat(dir); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("bad command created %s (stat err %v)", dir, err)
 	}
 }
