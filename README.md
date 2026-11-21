@@ -13,7 +13,7 @@ The command line stores, reads and deletes keys in a real on-disk store (each ru
 
 ![CLI session, benchmarks and fuzzing](docs/proof/demo.jpg)
 
-34 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.11, the version CI uses:
+36 tests pass, including recovery after a simulated crash, and govulncheck finds no vulnerabilities with Go 1.26.11, the version CI uses:
 
 ![go vet, go test and govulncheck output](docs/proof/tests.jpg)
 
@@ -104,7 +104,7 @@ Latest local run (full detail in [docs/results/m1.md](docs/results/m1.md)):
 
 | Check | Result |
 |---|---|
-| Unit, recovery and crash tests | 34 passed, 0 failed |
+| Unit, recovery and crash tests | 36 passed, 0 failed |
 | Simulated crash with a torn WAL tail | 200 of 200 acknowledged writes recovered |
 | WAL decoder fuzzing (30 s) | ~3.3M inputs, 0 crashes |
 | Durable writes (fsync each) | ~430/s (2.34 ms each) |
@@ -117,7 +117,7 @@ CI runs the same tests with the race detector on every push. The 10 quality rule
 
 ```mermaid
 mindmap
-  root((34 tests pass))
+  root((36 tests pass))
     Public API
       put get delete
       bad input refused
